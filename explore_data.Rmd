@@ -1,0 +1,225 @@
+---
+title: "explore_fp_data"
+output: html_document
+date: "2026-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# install.packages(c("tidyverse", "janitor", "fastDummies", "car", "corrplot"))
+library(tidyverse)    # dplyr, readr, ggplot2, forcats, stringr
+library(janitor)      # clean_names(), tabyl()
+library(fastDummies)  # dummy_cols()
+library(car)          # scatterplotMatrix()
+library(corrplot)     # corrplot()
+
+dir.create("figures",    showWarnings = FALSE)
+dir.create("clean_data", showWarnings = FALSE)
+
+raw <- read_csv("source_data/training.csv", show_col_types = FALSE)
+dim(raw)
+glimpse(raw)
+
+# Air quality columns are read in as character -> convert to numeric
+air_vars <- c("ozone", "PM25", "N02")   # N02 is spelled with a zero in the data
+
+# Which values won't convert? (these are what forced the character class)
+raw %>%
+  select(all_of(air_vars)) %>%
+  pivot_longer(everything()) %>%
+  filter(!is.na(value), is.na(suppressWarnings(as.numeric(value)))) %>%
+  count(name, value)
+```
+
+
+
+
+raw <- raw %>%
+  mutate(across(all_of(air_vars), ~ as.numeric(str_trim(as.character(.)))))
+
+sapply(raw[air_vars], class)   # should all be "numeric"
+summary(raw[air_vars])
+
+# ---------------------------------------------------------------------
+# 2. Missingness — look before deciding what to drop or impute
+# ---------------------------------------------------------------------
+missing_summary <- raw %>%
+  summarise(across(everything(), ~ mean(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "pct_missing") %>%
+  arrange(desc(pct_missing))
+
+print(missing_summary, n = 25)
+
+# Check the raw insurance labels before recoding them
+raw %>% count(payer_type)
+
+# ---------------------------------------------------------------------
+# 3. Clean
+# ---------------------------------------------------------------------
+cat_vars <- c("patient_race", "payer_type", "patient_state", "region", "division",
+              "breast_cancer_diagnosis_code", "metastatic_cancer_diagnosis_code")
+
+clean <- raw %>%
+  # Drop columns that carry no usable signal for classification
+  select(-any_of(c(
+    "patient_gender",                         # (nearly) all F -> no variation
+    "breast_cancer_diagnosis_desc",           # free-text duplicate of the code
+    "metastatic_first_novel_treatment",       # mostly missing
+    "metastatic_first_novel_treatment_type"   # mostly missing
+  ))) %>%
+  mutate(
+    # Standardize insurance into the three categories
+    payer_type = case_when(
+      str_detect(str_to_upper(payer_type), "MEDICAID")   ~ "Medicaid",
+      str_detect(str_to_upper(payer_type), "COMMERCIAL") ~ "Commercial",
+      str_detect(str_to_upper(payer_type), "MEDICARE")   ~ "Medicare",
+      TRUE                                               ~ NA_character_
+    ),
+    # Missing categorical values become their own level instead of dropping rows.
+    # Missingness itself can be informative (e.g., race not recorded).
+    across(all_of(cat_vars), ~ factor(replace_na(as.character(.), "Unknown"))),
+    # Collapse rare diagnosis codes so every level has enough patients.
+    # This also prevents the train/test column mismatch the tutorial fixes by hand.
+    breast_cancer_diagnosis_code     = fct_lump_min(breast_cancer_diagnosis_code,
+                                                    min = 20, other_level = "Other"),
+    metastatic_cancer_diagnosis_code = fct_lump_min(metastatic_cancer_diagnosis_code,
+                                                    min = 20, other_level = "Other"),
+    # BMI is mostly missing: keep a flag for "was BMI recorded" before imputing
+    bmi_missing = as.integer(is.na(bmi))
+  ) %>%
+  # Median-impute remaining numeric NAs (BMI + a few zip-level census/air values)
+  mutate(across(where(is.numeric) & !any_of(c("patient_id", "DiagPeriodL90D")),
+                ~ replace_na(., median(., na.rm = TRUE))))
+
+# Note: when you later split train/test, compute the imputation medians on
+# the training split only and apply them to test, to avoid leakage.
+
+stopifnot(!anyNA(clean))
+dim(clean)
+
+# ---------------------------------------------------------------------
+# 4. Dummy variables (model-ready dataset)
+# ---------------------------------------------------------------------
+# - patient_state / patient_zip3: too many levels; geography is captured by division
+# - region: nested inside division, so it would be redundant
+dummy_vars <- c("patient_race", "payer_type", "division",
+                "breast_cancer_diagnosis_code", "metastatic_cancer_diagnosis_code")
+
+model_df <- clean %>%
+  select(-patient_id, -patient_state, -patient_zip3, -region) %>%
+  dummy_cols(select_columns          = dummy_vars,
+             remove_first_dummy      = TRUE,   # avoids perfect collinearity
+             remove_selected_columns = TRUE) %>% # drops the original factor columns
+  clean_names() %>%                            # "patient_race_African American" -> snake_case
+  rename(DiagPeriodL90D = diag_period_l90d)
+
+dim(model_df)
+stopifnot(all(map_lgl(model_df, is.numeric)))
+
+write_csv(clean,    "clean_data/training_clean.csv")    # cleaned, factors intact (for EDA)
+write_csv(model_df, "clean_data/training_model.csv")    # all-numeric, ready for classification
+
+# ---------------------------------------------------------------------
+# 5. EDA — quantitative summaries (tutorial steps)
+# ---------------------------------------------------------------------
+# Outcome balance
+clean %>% tabyl(DiagPeriodL90D)
+
+# Summary of zip-level population and density
+summary(clean[, c("population", "density")])
+
+# Patients per state
+table(clean$patient_state)
+
+# Mean population and density by region
+clean %>%
+  group_by(region) %>%
+  summarise(population = mean(population), density = mean(density), n = n())
+
+# Factor version of the outcome for plotting
+eda <- clean %>%
+  mutate(DiagPeriodL90D = factor(DiagPeriodL90D, levels = c(0, 1)))
+
+outcome_labels <- c(`0` = "DiagPeriodL90D = 0 (more than 90 days)",
+                    `1` = "DiagPeriodL90D = 1 (within 90 days)")
+
+# ---------------------------------------------------------------------
+# 6. Figure 1 — Median age of zip code by outcome (kernel density)
+# ---------------------------------------------------------------------
+age_centers <- eda %>%
+  group_by(DiagPeriodL90D) %>%
+  summarise(mean_age_median = mean(age_median))
+
+p_age <- ggplot(eda, aes(x = age_median, color = DiagPeriodL90D)) +
+  geom_density(linewidth = 1) +
+  geom_vline(data = age_centers,
+             aes(xintercept = mean_age_median, color = DiagPeriodL90D),
+             linetype = 2, linewidth = 0.8) +
+  facet_wrap(~ DiagPeriodL90D, labeller = as_labeller(outcome_labels)) +
+  labs(title = "Median Age of Patient's Zip Code by Diagnosis Period",
+       subtitle = "Dashed line = group mean",
+       x = "Median age of residents (zip code)", y = "Density") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p_age
+ggsave("figures/age_median_density.png", p_age, width = 9, height = 4.5, dpi = 300)
+
+# ---------------------------------------------------------------------
+# 7. Figure 2 — Insurance type by outcome (bar chart, two panels)
+# ---------------------------------------------------------------------
+payer_plot_df <- eda %>%
+  filter(payer_type != "Unknown") %>%
+  mutate(payer_type = factor(payer_type, levels = c("Medicaid", "Commercial", "Medicare")))
+
+# How many rows were left out because insurance was missing
+sum(eda$payer_type == "Unknown")
+
+p_payer <- ggplot(payer_plot_df, aes(x = payer_type, fill = payer_type)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.4, size = 3.5) +
+  facet_wrap(~ DiagPeriodL90D, labeller = as_labeller(outcome_labels)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.08))) +
+  labs(title = "Insurance Type by Diagnosis Period",
+       x = "Insurance type", y = "Number of patients") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p_payer
+ggsave("figures/payer_type_by_outcome.png", p_payer, width = 9, height = 4.5, dpi = 300)
+
+# Proportions are easier to compare than counts when the groups differ in size
+payer_plot_df %>%
+  tabyl(payer_type, DiagPeriodL90D) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 1)
+
+# ---------------------------------------------------------------------
+# 8. Figure 3 — Bivariate relationships (scatterplot matrix)
+# ---------------------------------------------------------------------
+png("figures/scatterplot_matrix.png", width = 2400, height = 2400, res = 300)
+scatterplotMatrix(~ income_household_median + home_ownership +
+                    education_bachelors + health_uninsured,
+                  data = clean,
+                  spread = FALSE, smooth = list(lty = 2),
+                  main = "Bivariate Scatter Plot Matrix")
+dev.off()
+
+# ---------------------------------------------------------------------
+# 9. Figure 4 — Correlation plot (selected zip-level + air quality vars)
+# ---------------------------------------------------------------------
+corr_vars <- c("patient_age", "bmi", "age_median", "income_household_median",
+               "home_ownership", "education_bachelors", "health_uninsured",
+               "poverty", "unemployment_rate", "limited_english",
+               "ozone", "PM25", "N02", "DiagPeriodL90D")
+
+M <- cor(clean[, corr_vars])
+
+png("figures/corrplot.png", width = 2400, height = 2400, res = 300)
+corrplot(M, method = "number", order = "hclust", type = "upper",
+         tl.col = "black", number.cex = 0.6)
+dev.off()
