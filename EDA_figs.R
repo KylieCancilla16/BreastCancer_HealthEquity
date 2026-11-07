@@ -37,3 +37,30 @@ p_age <- ggplot(eda, aes(x = age_median, color = DiagPeriodL90D)) +
   theme(legend.position = "none")
 
 write_csv("MedianAge_fig.png", p_age)
+
+
+sum(eda$payer_type == "Unknown")
+
+payer_pct <- payer_plot_df %>%
+  count(DiagPeriodL90D, payer_type) %>%
+  group_by(DiagPeriodL90D) %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup()
+
+p_payer <- ggplot(payer_pct, aes(x = payer_type, y = pct, fill = payer_type)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(pct, accuracy = 0.1)),
+            vjust = -0.4, size = 3.5) +
+  facet_wrap(~ DiagPeriodL90D, labeller = as_labeller(outcome_labels)) +
+  scale_y_continuous(labels = scales::percent,
+                     expand = expansion(mult = c(0, 0.08))) +
+  labs(title = "Insurance Type by Diagnosis Period",
+       x = "Insurance type", y = "Percent of patients") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p_payer
+
+write_csv("PayerTypeFig.png", p_payer)
+
+
