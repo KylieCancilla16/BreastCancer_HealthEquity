@@ -1,7 +1,14 @@
 library(ggplot2)
+library(tidyverse)
+library(car)
+library(ggplot2)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+
 df <- read_csv("clean_data.csv")
 
-eda <- clean %>%
+eda <- df %>%
   mutate(DiagPeriodL90D = factor(DiagPeriodL90D, levels = c(0, 1)))
 
 outcome_labels <- c(`0` = "DiagPeriodL90D = 0 (more than 90 days)",
@@ -18,7 +25,7 @@ p_outcome <- ggplot(eda, aes(x = DiagPeriodL90D, fill = DiagPeriodL90D)) +
 
   theme(legend.position = "none")
 
-write_csv("DiagnosisPeriodDensity_fig.png", p_outcome)
+ggsave("DiagnosisPeriodDensity_fig.png", p_outcome)
 
 age_centers <- eda %>%
   group_by(DiagPeriodL90D) %>%
@@ -36,10 +43,14 @@ p_age <- ggplot(eda, aes(x = age_median, color = DiagPeriodL90D)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-write_csv("MedianAge_fig.png", p_age)
+ggsave("MedianAge_fig.png", p_age)
 
 
 sum(eda$payer_type == "Unknown")
+
+payer_plot_df <- eda %>%
+  filter(payer_type != "Unknown") %>%
+  mutate(payer_type = factor(payer_type, levels = c("Medicaid", "Commercial", "Medicare")))
 
 payer_pct <- payer_plot_df %>%
   count(DiagPeriodL90D, payer_type) %>%
@@ -59,8 +70,7 @@ p_payer <- ggplot(payer_pct, aes(x = payer_type, y = pct, fill = payer_type)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-p_payer
 
-write_csv("PayerTypeFig.png", p_payer)
 
+ggsave("PayerTypeFig.png", p_payer)
 
