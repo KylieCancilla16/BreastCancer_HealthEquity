@@ -7,6 +7,7 @@ library(GGally)
 library(ggplot2)
 
 df <- read_csv("clean_data.csv")
+dir.create("figures", showWarnings = FALSE, recursive = TRUE)
 
 eda <- df %>%
   mutate(DiagPeriodL90D = factor(DiagPeriodL90D, levels = c(0, 1)))
@@ -25,25 +26,25 @@ p_outcome <- ggplot(eda, aes(x = DiagPeriodL90D, fill = DiagPeriodL90D)) +
 
   theme(legend.position = "none")
 
-ggsave("DiagnosisPeriodDensity_fig.png", p_outcome)
+ggsave("figures/DiagnosisPeriodDensity_fig.png", p_outcome)
 
 age_centers <- eda %>%
   group_by(DiagPeriodL90D) %>%
-  summarise(mean_age_median = mean(age_median))
+  summarise(mean_age = mean(patient_age))
 
-p_age <- ggplot(eda, aes(x = age_median, color = DiagPeriodL90D)) +
+p_age <- ggplot(eda, aes(x = patient_age, color = DiagPeriodL90D)) +
   geom_density(linewidth = 1) +
   geom_vline(data = age_centers,
-             aes(xintercept = mean_age_median, color = DiagPeriodL90D),
+             aes(xintercept = mean_age, color = DiagPeriodL90D),
              linetype = 2, linewidth = 0.8) +
   facet_wrap(~ DiagPeriodL90D, labeller = as_labeller(outcome_labels)) +
-  labs(title = "Median Age of Patient's Zip Code by Diagnosis Period",
+  labs(title = "Mean Age of Patient's by Diagnosis Period",
        subtitle = "Dashed line = group mean",
-       x = "Median age of residents (zip code)", y = "Density") +
+       x = "Median age", y = "Density") +
   theme_minimal() +
   theme(legend.position = "none")
 
-ggsave("MedianAge_fig.png", p_age)
+ggsave("figures/Age_fig.png", p_age)
 
 
 sum(eda$payer_type == "Unknown")
@@ -70,7 +71,5 @@ p_payer <- ggplot(payer_pct, aes(x = payer_type, y = pct, fill = payer_type)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-
-
-ggsave("PayerTypeFig.png", p_payer)
+ggsave("figures/PayerTypeFig.png", p_payer)
 

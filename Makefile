@@ -1,14 +1,14 @@
 .PHONY: all clean
 
-all: DiagnosisPeriodDensity_fig.png MedianAge_fig.png PayerTypeFig.png
+all: figures/DiagnosisPeriodDensity_fig.png figures/Age_fig.png figures/PayerTypeFig.png figures/Economic_var_corrs.png figures/corrplot.png figures/OutcomeCorrelations.png
 
 clean_data.csv: clean_data.R source_data.csv
 	Rscript clean_data.R
 
-DiagnosisPeriodDensity_fig.png MedianAge_fig.png PayerTypeFig.png: EDA_figs.R clean_data.csv
+figures/DiagnosisPeriodDensity_fig.png figures/Age_fig.png figures/PayerTypeFig.png: EDA_figs.R clean_data.csv
 	Rscript EDA_figs.R
 
-Economic_var_corrs.png corrplot.png OutcomeCorrelations.png: correlation_plots.R clean_data.csv
+figures/Economic_var_corrs.png figures/corrplot.png figures/OutcomeCorrelations.png: correlation_plots.R clean_data.csv
 	Rscript correlation_plots.R
 
 clean:

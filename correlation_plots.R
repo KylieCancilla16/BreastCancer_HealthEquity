@@ -30,7 +30,7 @@ economic_var_corrs <- ggpairs(
   theme_bw(base_size = 11) +
   theme(strip.text = element_text(size = 9))
 
-ggsave("Economic_var_corrs.png", economic_var_corrs)
+ggsave("figures/Economic_var_corrs.png", economic_var_corrs)
 
 corr_vars <- c("patient_age", "bmi", "age_median", "income_household_median",
                "home_ownership", "education_bachelors", "health_uninsured",
@@ -45,7 +45,7 @@ nice_names <- c("Patient age", "BMI", "Median age (area)",
 M <- cor(clean[, corr_vars], use = "pairwise.complete.obs", method = "spearman")
 dimnames(M) <- list(nice_names, nice_names)
 
-png("corrplot.png", width = 2400, height = 2400, res = 300)
+png("figures/corrplot.png", width = 2400, height = 2400, res = 300)
 corrplot.mixed(M,
                order = "hclust",
                lower = "number", upper = "circle",
@@ -79,4 +79,4 @@ outcome_corrs <- ggplot(outcome_cor, aes(x = r, y = reorder(variable, r), fill =
        title = "Which variables relate to diagnosis within 90 days?") +
   theme_bw()
 
-ggsave("OutcomeCorrelations.png", outcome_corrs)
+ggsave("figures/OutcomeCorrelations.png", outcome_corrs)
