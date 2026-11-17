@@ -15,4 +15,4 @@ figures/scree_plot.png figures/pc_loadings.png: PCA.R clean_data.csv
 	Rscript PCA.R
 
 clean:
-	rm -f clean_data.csv *.png
+	rm -f clean_data.csv figures/*.png figures/adaboost/*.png adaboost_data.rds

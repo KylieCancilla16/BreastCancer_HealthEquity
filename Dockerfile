@@ -1,6 +1,6 @@
 
 FROM rocker/rstudio:latest
 
-RUN R -e "install.packages(c('matlab', 'tidyverse', 'GGally', 'janitor', 'fastDummies', 'car', 'corrplot'))"
+RUN R -e "install.packages(c('matlab', 'tidyverse', 'GGally', 'janitor', 'fastDummies', 'car', 'corrplot', 'caret', 'gbm', 'gridExtra'))"
 
 

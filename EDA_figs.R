@@ -40,7 +40,7 @@ p_age <- ggplot(eda, aes(x = patient_age, color = DiagPeriodL90D)) +
   facet_wrap(~ DiagPeriodL90D, labeller = as_labeller(outcome_labels)) +
   labs(title = "Mean Age of Patient's by Diagnosis Period",
        subtitle = "Dashed line = group mean",
-       x = "Median age", y = "Density") +
+       x = "Mean age", y = "Density") +
   theme_minimal() +
   theme(legend.position = "none")
 
@@ -72,4 +72,12 @@ p_payer <- ggplot(payer_pct, aes(x = payer_type, y = pct, fill = payer_type)) +
   theme(legend.position = "none")
 
 ggsave("figures/PayerTypeFig.png", p_payer)
+
+payer_pct <- payer_plot_df %>%
+  count(DiagPeriodL90D, patient_race) %>%
+  group_by(DiagPeriodL90D) %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup()
+
+
 
