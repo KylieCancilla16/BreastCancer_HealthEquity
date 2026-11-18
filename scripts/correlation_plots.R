@@ -12,26 +12,6 @@ plot_df <- clean[, c("income_household_median", "home_ownership",
                      "education_bachelors", "health_uninsured")]
 plot_df$income_household_median <- plot_df$income_household_median / 1000
 
-names(plot_df) <- c("Median household\nincome ($1,000s)",
-                    "Home ownership (%)",
-                    "Bachelor's degree (%)",
-                    "Uninsured (%)")
-
-economic_var_corrs <- ggpairs(
-  plot_df,
-  lower = list(continuous = wrap("smooth_loess", alpha = 0.25, size = 0.8,
-                                 colour = "grey30")),
-  diag  = list(continuous = wrap("densityDiag", fill = "steelblue",
-                                 alpha = 0.4)),
-  upper = list(continuous = wrap("cor", size = 5, method = "spearman"))
-) +
-  labs(title = "Pairwise relationships among socioeconomic indicators",
-       subtitle = "Lower: scatterplots with loess smoother | Upper: Spearman correlations") +
-  theme_bw(base_size = 11) +
-  theme(strip.text = element_text(size = 9))
-
-ggsave("figures/Economic_var_corrs.png", economic_var_corrs)
-
 corr_vars <- c("patient_age", "bmi", "age_median", "income_household_median",
                "home_ownership", "education_bachelors", "health_uninsured",
                "poverty", "unemployment_rate", "limited_english",
