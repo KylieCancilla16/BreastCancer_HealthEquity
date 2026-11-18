@@ -1,6 +1,7 @@
 
 *.csv
 !source_data.csv
+*.rds
 
 figures/
 *.png
