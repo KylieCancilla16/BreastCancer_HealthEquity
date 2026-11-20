@@ -31,7 +31,7 @@ docker build -t <image-name> .
 
    **macOS / Linux (Terminal):**
    ```
-   docker run --rm -p 8789:8787 -e PASSWORD=yourpassword -v "$(pwd)":/home/rstudio/project <image-name>
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "$(pwd)":/home/rstudio/project <image-name>
    ```
 
    **Windows (PowerShell):**
