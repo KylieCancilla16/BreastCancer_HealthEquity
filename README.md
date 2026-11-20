@@ -31,17 +31,17 @@ docker build -t <image-name> .
 
    **macOS / Linux (Terminal):**
    ```
-   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "$(pwd)":/home/rstudio/project rocker/rstudio
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "$(pwd)":/home/rstudio/project rocker/rstudio <image-name> .
    ```
 
    **Windows (PowerShell):**
    ```
-   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "${PWD}:/home/rstudio/project" rocker/rstudio
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "${PWD}:/home/rstudio/project" rocker/rstudio <image-name> .
    ```
 
    **Windows (Command Prompt):**
    ```
-   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "%cd%":/home/rstudio/project rocker/rstudio
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "%cd%":/home/rstudio/project rocker/rstudio <image-name> . 
    ```
 
 2. Open a browser and go to `http://localhost:8787`
