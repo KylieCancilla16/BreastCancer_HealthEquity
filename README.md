@@ -1,6 +1,6 @@
-# Exploring Health Access and Equity Through Breast Cancer Diagnosis Period 
+# Breast Cancer Health Equity: Predicting Timely Metastatic Diagnosis
 
-This project explores a dataset from the Women in Data Science Wordwide (WiDs) 2024 datathon. The dataset includes 10000 patients, their geo coded (zip level) demographic data (income, education, race, uninsured, etc), characteristics (age, bmi, race) and metastatic cancer diagnosis code (representing secondary malignant neoplasm). 
+This project explores a dataset from the Women in Data Science Wordwide (WiDs) 2024 datathon. The dataset includes 10000 patients, their geo coded (zip level) demographic data (income, education, race, uninsured, etc), characteristics (age, bmi, race) and metastatic cancer diagnosis code. 
 
 ## Getting Started
 
@@ -31,17 +31,17 @@ docker build -t <image-name> .
 
    **macOS / Linux (Terminal):**
    ```
-   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "$(pwd)":/home/rstudio/project
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "$(pwd)":/home/rstudio/project rocker/rstudio
    ```
 
    **Windows (PowerShell):**
    ```
-   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "${PWD}:/home/rstudio/project" 
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "${PWD}:/home/rstudio/project" rocker/rstudio
    ```
 
    **Windows (Command Prompt):**
    ```
-   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "%cd%":/home/rstudio/project 
+   docker run --rm -p 8787:8787 -e PASSWORD=yourpassword -v "%cd%":/home/rstudio/project rocker/rstudio
    ```
 
 2. Open a browser and go to `http://localhost:8787`

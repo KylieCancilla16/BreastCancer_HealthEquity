@@ -1,0 +1,75 @@
+---
+title: "Breast Cancer Health Equity: Predicting Timely Metastatic Diagnosis"
+author: "Kylie Cancilla"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.align = "center")
+```
+
+# Introduction
+
+Health care access and inequity is a challenge throughout the United States. Timely diagnosis of breast cancer is crucial for a full recovery, therefore it is important to understand the factors that affect the diagnosis period. This project aims to assess whether the likelihood of the patient’s Diagnosis Period being less than 90 days is predictable using patient characteristics (age, bmi, race), geo coded (zip level) demographic data (income, education, race, uninsured, etc) and metastatic cancer diagnosis code.  
+
+# Data
+
+The outcome variable for this data set is DiagPeriodL90D (Diagnosis Period Less than 90 Days) which indicates whether a patient’s metastatic cancer diagnosis occurred within 90 days of their initial breast cancer diagnosis (1 = within 90 days, 0 = more than 90 days). The data had missing values which were handled by: removing patient race (>50% of data missing) and patient gender (all female), filling categorical columns with unknowns instead of NAs (payer type, state) and quantitative columns with the median (bmi, age). All census data did not have any missing values. Let's start with looking at the outcome density and some bivariate relationships and correlations with features and the outcome variable. 
+
+```{r eda, out.width = "100%", fig.cap = "Figure 1. Exploratory data analysis."}
+knitr::include_graphics("figures/EDA_fig.png")
+```
+
+```{r correlations, out.width = "80%", fig.cap = "Figure 2. Correlation of numeric variables with diagnosis within 90 days."}
+knitr::include_graphics("figures/OutcomeCorrelations.png")
+```
+All of the correlations are very low indicating that these features might not be the most predictive of diagnosis within 90 days. In order to understand how the features relate to each other I will also plot the correlations between the features.
+
+```{r}
+knitr::include_graphics("figures/corrplot.png")
+```
+
+# Neighborhood Structure (PCA)
+
+Principle component analysis is an unsupervised method that is a dimensionality reduction technique, which can help understand the structure of the data. Because the neighborhood  census variables in this dataset are highly correlated with each other, we performed PCA on the standardized numeric predictors, excluding the outcome, to understand how patients’ neighborhoods differ. The first three components had clear interpretations. PC1 (about 30% of the variance) separated urban, affluent, highly educated areas from rural areas. PC2 captured poverty and economic hardship. PC3 reflected the age structure of the area (older populations vs. working-age populations with children). 
+
+```{r pca-scree, out.width = "90%", fig.cap = "Figure 3. Variance explained by each principal component."}
+knitr::include_graphics("figures/scree_plot.png")
+```
+
+```{r pca-loadings, out.width = "100%", fig.cap = "Figure 4. Top variables for the first six principal components."}
+knitr::include_graphics("figures/pc_loadings.png")
+```
+
+# The ICD-9 Coding Artifact
+
+This data set included two codes `breast_cancer_diagnosis_code` (initial diagnosis) and `metastatic_cancer_diagnosis_code` (diagnosis of cancer spread). While modeling this data it was obvious that these two columns were the biggest predictors. This was due to the fact that ICD codes changed structure for breast cancer diagnosis, before 2015 the codes started with ‘174' and C50 after 2015. 
+The breast cancer code alone gave the model an AUC of 0.80. Breaking it down by code, ICD-10 patients had about a 78% rate of diagnosis within 90 days, and ICD-9 patients had about 10%. The tumor location inside the breast didn’t matter. Only the coding system did. Therefore, preceding analysis does not include the ICD-9 patients so the data set only includes patients from the same coding era. The `breast_cancer_diagnosis_code` column was also removed. The AUC dropped from 0.80 to about 0.58. A one-variable ‘pre-2015 or not’ flag alone gets 0.76, so most of the original model’s accuracy was this artifact.
+
+# AdaBoost Model
+
+AdaBoost is a tree-based model that builds lots of small trees one after another, with each new tree focusing on the patients the previous ones got wrong. I dropped the ICD-9 patients, split the data 80/20 into train and test sets, and fit up to 3,000 trees, using 5-fold cross-validation to pick the best number of trees. At first, state was one of the most important variables, but that’s likely because it has so many categories (about 50 states), which gives the trees many ways to split. Dropping it barely changed the AUC (0.578 vs 0.577), so I left it out.
+
+```{r roc-comparison, out.width = "100%", fig.cap = "Figure 6. (A) Model with ICD code, (B) final model without ICD code, (C) ICD version flag alone, (D) Model A predictions by ICD version."}
+knitr::include_graphics("figures/adaboost/icd_roc_comparison.png")
+```
+
+```{r importance, out.width = "80%", fig.cap = "Figure 7. Relative influence of variables in the final model."}
+knitr::include_graphics("figures/adaboost/variable_importance.png")
+```
+
+```{r ice, out.width = "100%", fig.cap = "Figure 8. ICE plots for the four most important variables."}
+knitr::include_graphics("figures/adaboost/ice_top4.png")
+```
+
+# Discussion
+
+In this project we explored features that affect the diagnosis period between initial breast cancer diagnosis and metastic diagnosis. This data set had a lot of census features which overlapped in information, therefore when performing PCA the pcs mostly explained neighborhood level information (rural/urban, income of census, age of census). Through modeling the data we discovered the most predictive features were metastatic code which represents the location the cancer has spread and age of the patient. Both of these variables make sense because as people get older they are more likely to go to the doctor to get a check up for breast cancer. Patients were more likely to be diagnosed within 90 days when cancer spread to more sever places (liver, brain) and least likely when it spread to the secondary breast. Neighborhood level factors were represented in the model through income_less_than_5 (percentage of residents with income less than 5000) and uninsured (percentage of residents who are uninsured). Both indicating that higher income areas (<2.5% percentage of residents with income less than 5000 and <20% uninsured) increased the likely hood of being diagnosed within 90 days. 
+
+# Limitations
+
+This dataset only achieved an AUC of (0.577) because of the lack of individual and clinical features, most of the dataset was based on census (zip-3) level data. In order to fully understand the cause of delayed diagnosis of metastatic breast cancer a larger dataset with more features would be needed. 
